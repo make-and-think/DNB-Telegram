@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from .utils import convert_to_square_webp, send_to_api
 import logging
+from config.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,20 +31,42 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Извините, не удалось получить информацию об изображении.")
         return
 
-    # Определение основного рейтинга
-    main_rating = max(ratings, key=ratings.get)
-    main_rating_score = ratings[main_rating]
+    # Проверка qe_value
+    qe_value = ratings.get('questionable', 0) + ratings.get('explicit', 0)
+    qe_threshold = settings.get('qe_threshold', 0.8)
+    
+    if qe_value > qe_threshold:
+        reply_message = f"Ваше сообщение будет удалено из-за превышения NSFW"
+        await update.message.reply_text(reply_message)
+        await update.message.delete()
+        return
 
-    # Формирование списка основных тегов
-    top_tags = sorted(general_tags.items(), key=lambda x: x[1], reverse=True)[:3]
-    tags_str = ", ".join([f"{tag} ({score:.2f})" for tag, score in top_tags])
+    # Проверка tag_value
+    tag_threshold = settings.get('tag_threshold', 0.55)
+    banned_tags = settings.get('banned_tags', [])
+    for tag, score in general_tags.items():
+        if tag in banned_tags and score > tag_threshold:
+            reply_message = f"Ваше сообщение будет удалено из-за запрещенного тега: {tag} ({score:.2f} > {tag_threshold})"
+            await update.message.reply_text(reply_message)
+            await update.message.delete()
+            return
+
+    # Если изображение прошло все проверки, отправляем информацию о нем
+    ratings_str = "\n".join([f"{rating}: {score:.2f}" for rating, score in ratings.items()])
+    tags_str = ", ".join([f"{tag} ({score:.2f})" for tag, score in sorted(general_tags.items(), key=lambda x: x[1], reverse=True)])
 
     reply_message = (
-        f"Рейтинг изображения: {main_rating} ({main_rating_score:.2f})\n"
-        f"Основные теги: {tags_str}"
+        f"Рейтинги изображения:\n{ratings_str}\n\n"
+        f"Теги: {tags_str}"
     )
 
-    await update.message.reply_text(reply_message)
+    if len(reply_message) > 4096:
+        parts = [reply_message[i:i+4096] for i in range(0, len(reply_message), 4096)]
+        for part in parts:
+            await update.message.reply_text(part)
+    else:
+        await update.message.reply_text(reply_message)
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type not in ['group', 'supergroup']:

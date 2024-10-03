@@ -36,7 +36,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     qe_threshold = settings.qe_threshold
     
     if qe_value > qe_threshold:
-        reply_message = f"Ваше сообщение будет удалено из-за превышения NSFW" ## TODO USE https://github.com/solaluset/i18nice
+        reply_message = f"Ваше сообщение будет удалено из-за превышения NSFW {qe_value} > {qe_threshold}" ## TODO USE https://github.com/solaluset/i18nice
         await update.message.reply_text(reply_message)
         await update.message.delete()
         return
@@ -74,3 +74,70 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     ## TODO USE https://github.com/solaluset/i18nice
     await update.message.reply_text("Привет! Я бот для обработки и анализа изображений. Я работаю только в групповых чатах.")
+
+async def set_qe_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        return
+    
+    try:
+        new_threshold = float(context.args[0])
+        if 0 <= new_threshold <= 1:
+            settings.set('qe_threshold', new_threshold)
+            await update.message.reply_text(f"Новый порог qe_threshold установлен: {new_threshold}")
+        else:
+            await update.message.reply_text("Пожалуйста, укажите значение от 0 до 1.")
+    except (IndexError, ValueError):
+        await update.message.reply_text("Пожалуйста, укажите корректное числовое значение.")
+
+async def set_tag_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        return
+    
+    try:
+        new_threshold = float(context.args[0])
+        if 0 <= new_threshold <= 1:
+            settings.set('tag_threshold', new_threshold)
+            await update.message.reply_text(f"Новый порог tag_threshold установлен: {new_threshold}")
+        else:
+            await update.message.reply_text("Пожалуйста, укажите значение от 0 до 1.")
+    except (IndexError, ValueError):
+        await update.message.reply_text("Пожалуйста, укажите корректное числовое значение.")
+
+async def add_banned_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        return
+    
+    try:
+        new_tag = context.args[0].lower()
+        banned_tags = settings.get('banned_tags', [])
+        if new_tag not in banned_tags:
+            banned_tags.append(new_tag)
+            settings.set('banned_tags', banned_tags)
+            await update.message.reply_text(f"Тег '{new_tag}' добавлен в список запрещенных.")
+        else:
+            await update.message.reply_text(f"Тег '{new_tag}' уже в списке запрещенных.")
+    except IndexError:
+        await update.message.reply_text("Пожалуйста, укажите тег для добавления.")
+
+async def remove_banned_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update, context):
+        return
+    
+    try:
+        tag_to_remove = context.args[0].lower()
+        banned_tags = settings.get('banned_tags', [])
+        if tag_to_remove in banned_tags:
+            banned_tags.remove(tag_to_remove)
+            settings.set('banned_tags', banned_tags)
+            await update.message.reply_text(f"Тег '{tag_to_remove}' удален из списка запрещенных.")
+        else:
+            await update.message.reply_text(f"Тег '{tag_to_remove}' не найден в списке запрещенных.")
+    except IndexError:
+        await update.message.reply_text("Пожалуйста, укажите тег для удаления.")
+
+async def is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = await context.bot.get_chat_member(update.effective_chat.id, update.effective_user.id)
+    if user.status in ['creator', 'administrator']:
+        return True
+    await update.message.reply_text("Эта команда доступна только администраторам.")
+    return False

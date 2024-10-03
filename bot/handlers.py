@@ -33,7 +33,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Проверка qe_value
     qe_value = ratings.get('questionable', 0) + ratings.get('explicit', 0)
-    qe_threshold = settings.get('qe_threshold', 0.8)
+    qe_threshold = settings.qe_threshold
     
     if qe_value > qe_threshold:
         reply_message = f"Ваше сообщение будет удалено из-за превышения NSFW" ## TODO USE https://github.com/solaluset/i18nice
@@ -42,8 +42,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Проверка tag_value
-    tag_threshold = settings.get('tag_threshold', 0.55)
-    banned_tags = settings.get('banned_tags', [])
+    tag_threshold = settings.tag_threshold
+    banned_tags = settings.banned_tags
     for tag, score in general_tags.items():
         if tag in banned_tags and score > tag_threshold:
             reply_message = f"Ваше сообщение будет удалено из-за запрещенного тега: {tag} ({score:.2f} > {tag_threshold})" ## TODO USE https://github.com/solaluset/i18nice

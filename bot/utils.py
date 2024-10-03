@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 def convert_to_square_webp(image_bytes):
+    # Преобразуем image_bytes в байтовый объект
+    image_bytes = bytes(image_bytes)
+    
     with Image(blob=image_bytes) as image:
         # Определяем размер для квадратного изображения
         size = max(image.width, image.height)

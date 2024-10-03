@@ -1,5 +1,5 @@
 import requests
-from PIL import Image  # TODO USE THIS https://pypi.org/project/Wand/
+from wand.image import Image
 from io import BytesIO
 from config import API_URL
 import logging
@@ -8,23 +8,21 @@ logger = logging.getLogger(__name__)
 
 
 def convert_to_square_webp(image_bytes):
-    image = Image.open(BytesIO(image_bytes)) # TODO USE THIS https://pypi.org/project/Wand/
+    with Image(blob=image_bytes) as image:
+        # Определяем размер для квадратного изображения
+        size = max(image.width, image.height)
 
-    # Определяем размер для квадратного изображения
-    size = max(image.size)
+        # Создаем новое квадратное изображение с белым фоном
+        with Image(width=size, height=size, background='white') as square_image:
+            # Вставляем исходное изображение в центр
+            left = (size - image.width) // 2
+            top = (size - image.height) // 2
+            square_image.composite(image, left=left, top=top)
 
-    # Создаем новое квадратное изображение с белым фоном
-    square_image = Image.new('RGB', (size, size), (255, 255, 255))
-    # TODO USE THIS https://pypi.org/project/Wand/
-    # Вставляем исходное изображение в центр
-    position = ((size - image.size[0]) // 2, (size - image.size[1]) // 2)
-    square_image.paste(image, position)
+            # Конвертируем в WebP
+            square_image.format = 'webp'
+            webp_buffer = BytesIO(square_image.make_blob())
 
-    # Конвертируем в WebP
-    webp_buffer = BytesIO()
-    square_image.save(webp_buffer, format="WebP")
-    webp_buffer.seek(0)
-    # TODO USE THIS https://pypi.org/project/Wand/
     return webp_buffer
 
 

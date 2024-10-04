@@ -8,7 +8,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-
+## TODO change python-telegram-bot tp Telethon
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
     

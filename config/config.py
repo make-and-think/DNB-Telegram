@@ -7,6 +7,7 @@ settings = Dynaconf(
     envvar_prefix="MYAPP",
 )
 
+
 # Эта функция позволяет динамически изменять настройки
 def update_settings(key, value):
     settings.set(key, value)

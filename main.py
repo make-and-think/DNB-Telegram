@@ -6,9 +6,9 @@ from bot.handlers import handle_photo, start, set_qe_threshold, set_tag_threshol
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=logging.INFO,
 )
-## TODO change python-telegram-bot tp Telethon
+## TODO add slash commands description
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
     

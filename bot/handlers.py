@@ -96,7 +96,9 @@ async def set_qe_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         new_threshold = float(context.args[0])
         if 0 <= new_threshold <= 1:
+            old_threshold = settings.get('qe_threshold')
             settings.set('qe_threshold', new_threshold)
+            logger.info(f"QE threshold changed from {old_threshold} to {new_threshold} by user {update.effective_user.id}")
             await update.message.reply_text(localization.new_qe_threshold_set.format(new_threshold=new_threshold))
         else:
             await update.message.reply_text(localization.please_specify_value_between)
@@ -111,7 +113,9 @@ async def set_tag_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         new_threshold = float(context.args[0])
         if 0 <= new_threshold <= 1:
+            old_threshold = settings.get('tag_threshold')
             settings.set('tag_threshold', new_threshold)
+            logger.info(f"Tag threshold changed from {old_threshold} to {new_threshold} by user {update.effective_user.id}")
             await update.message.reply_text(localization.new_tag_threshold_set.format(new_threshold=new_threshold))
         else:
             await update.message.reply_text(localization.please_specify_value_between)
@@ -129,6 +133,7 @@ async def add_banned_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if new_tag not in banned_tags:
             banned_tags.append(new_tag)
             settings.set('banned_tags', banned_tags)
+            logger.info(f"Banned tag '{new_tag}' added by user {update.effective_user.id}")
             await update.message.reply_text(localization.tag_added_to_banned.format(new_tag=new_tag))
         else:
             await update.message.reply_text(localization.tag_already_in_banned.format(new_tag=new_tag))
@@ -146,6 +151,7 @@ async def remove_banned_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if tag_to_remove in banned_tags:
             banned_tags.remove(tag_to_remove)
             settings.set('banned_tags', banned_tags)
+            logger.info(f"Banned tag '{tag_to_remove}' removed by user {update.effective_user.id}")
             await update.message.reply_text(localization.tag_removed_from_banned.format(tag_to_remove=tag_to_remove))
         else:
             await update.message.reply_text(localization.tag_not_found_in_banned.format(tag_to_remove=tag_to_remove))

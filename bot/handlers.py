@@ -7,12 +7,12 @@ from dynaconf import Dynaconf
 
 logger = logging.getLogger(__name__)
 
-default_language = settings.get('default_language', 'en')
-localization_file = settings.localization_files[default_language]
-localization = Dynaconf(settings_files=[localization_file])
+default_language = settings.get('default_language', 'en') # TODO move to settings.py
+localization_file = settings.localization_files[default_language] # TODO move to settings.py
+localization = Dynaconf(settings_files=[localization_file])  # TODO move to settings.py
 
 
-def get_localization():
+def get_localization(): # TODO move to settings.py
     return localization
 
 
@@ -24,6 +24,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo = update.message.photo[-1]
     file = await context.bot.get_file(photo.file_id)
     image_bytes = await file.download_as_bytearray()
+    # TODO Проверка файлов.
 
     webp_buffer = convert_to_square_webp(image_bytes)
 
@@ -54,7 +55,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Проверка tag_value
-    tag_threshold = settings.tag_threshold
+    tag_threshold = settings.tag_threshold  # TODO У каждого тега свой показатель tag_threshold
     banned_tags = settings.banned_tags
     for tag, score in general_tags.items():
         if tag in banned_tags and score > tag_threshold:
@@ -65,6 +66,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     # Если изображение прошло все проверки, отправляем информацию о нем
+    # TODO Если изображение прошло все проверки то зачем написать почему мы его удалили?
     ratings_str = "\n".join([f"{rating}: {score:.2f}" for rating, score in ratings.items()])
     tags_str = ", ".join(
         [f"{tag} ({score:.2f})" for tag, score in sorted(general_tags.items(), key=lambda x: x[1], reverse=True)])

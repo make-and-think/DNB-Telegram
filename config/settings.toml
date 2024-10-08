@@ -2,3 +2,9 @@
 qe_threshold = 0.8
 tag_threshold = 0.3
 banned_tags = ["penis", "violence", "другие_запрещенные_теги"]
+default_language = "en"
+available_languages = ["ru", "en"]
+
+[default.localization_files]
+ru = "config/localizations/ru-RU.toml"
+en = "config/localizations/en-EN.toml"

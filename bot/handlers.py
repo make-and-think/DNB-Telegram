@@ -1,16 +1,22 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CallbackQueryHandler
 from .utils import convert_to_square_webp, send_to_api
 import logging
 from config.config import settings
+from dynaconf import Dynaconf
 
 logger = logging.getLogger(__name__)
 
+default_language = settings.get('default_language', 'en')
+localization_file = settings.localization_files[default_language]
+localization = Dynaconf(settings_files=[localization_file])
+
+def get_localization():
+    return localization
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type not in ['group', 'supergroup']:
-        await update.message.reply_text(
-            "Я работаю только в групповых чатах.")  ## TODO USE https://github.com/solaluset/i18nice
+        await update.message.reply_text(localization.group_only_message)
         return
 
     photo = update.message.photo[-1]
@@ -23,7 +29,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if api_response is None:
         await update.message.reply_text(
-            "Извините, произошла ошибка при обработке изображения. Попробуйте позже.")  ## TODO USE https://github.com/solaluset/i18nice
+            localization.error_processing_image)
         return
 
     # Обработка ответа API
@@ -32,7 +38,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not ratings or not general_tags:
         await update.message.reply_text(
-            "Извините, не удалось получить информацию об изображении.")  ## TODO USE https://github.com/solaluset/i18nice
+            localization.failed_to_get_image_info)
         return
 
     # Проверка qe_value
@@ -40,7 +46,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     qe_threshold = settings.qe_threshold
 
     if qe_value > qe_threshold:
-        reply_message = f"Ваше сообщение будет удалено из-за превышения NSFW {qe_value} > {qe_threshold}"  ## TODO USE https://github.com/solaluset/i18nice
+        reply_message = localization.message_deleted_nsfw.format(qe_value=qe_value, qe_threshold=qe_threshold)
         await update.message.reply_text(reply_message)
         await update.message.delete()
         return
@@ -50,7 +56,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     banned_tags = settings.banned_tags
     for tag, score in general_tags.items():
         if tag in banned_tags and score > tag_threshold:
-            reply_message = f"Ваше сообщение будет удалено из-за запрещенного тега: {tag} ({score:.2f} > {tag_threshold})"  ## TODO USE https://github.com/solaluset/i18nice
+            reply_message = localization.message_deleted_banned_tag.format(tag=tag, score=score, tag_threshold=tag_threshold)
             await update.message.reply_text(reply_message)
             await update.message.delete()
             return
@@ -61,9 +67,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [f"{tag} ({score:.2f})" for tag, score in sorted(general_tags.items(), key=lambda x: x[1], reverse=True)])
 
     reply_message = (
-        f"Рейтинги изображения:\n{ratings_str}\n\n"
-        f"Теги: {tags_str}"
-    )  ## TODO USE https://github.com/solaluset/i18nice
+        f"{localization.image_ratings}\n{ratings_str}\n\n"
+        f"{localization.image_tags} {tags_str}"
+    )
 
     if len(reply_message) > 4096:
         parts = [reply_message[i:i + 4096] for i in range(0, len(reply_message), 4096)]
@@ -75,11 +81,12 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type not in ['group', 'supergroup']:
-        await update.message.reply_text("Я работаю только в групповых чатах.")
+        await update.message.reply_text(localization.group_only_message)
         return
-    ## TODO USE https://github.com/solaluset/i18nice
+    
     await update.message.reply_text(
-        "Привет! Я бот для обработки и анализа изображений. Я работаю только в групповых чатах.")
+        localization.start_message
+    )
 
 
 async def set_qe_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -87,15 +94,16 @@ async def set_qe_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        ## TODO USE https://github.com/solaluset/i18nice
         new_threshold = float(context.args[0])
         if 0 <= new_threshold <= 1:
+            old_threshold = settings.get('qe_threshold')
             settings.set('qe_threshold', new_threshold)
-            await update.message.reply_text(f"Новый порог qe_threshold установлен: {new_threshold}")
+            logger.info(f"QE threshold changed from {old_threshold} to {new_threshold} by user {update.effective_user.id}")
+            await update.message.reply_text(localization.new_qe_threshold_set.format(new_threshold=new_threshold))
         else:
-            await update.message.reply_text("Пожалуйста, укажите значение от 0 до 1.")
+            await update.message.reply_text(localization.please_specify_value_between)
     except (IndexError, ValueError):
-        await update.message.reply_text("Пожалуйста, укажите корректное числовое значение.")
+        await update.message.reply_text(localization.please_specify_correct_value)
 
 
 async def set_tag_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -105,13 +113,14 @@ async def set_tag_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         new_threshold = float(context.args[0])
         if 0 <= new_threshold <= 1:
+            old_threshold = settings.get('tag_threshold')
             settings.set('tag_threshold', new_threshold)
-            ## TODO USE https://github.com/solaluset/i18nice
-            await update.message.reply_text(f"Новый порог tag_threshold установлен: {new_threshold}")
+            logger.info(f"Tag threshold changed from {old_threshold} to {new_threshold} by user {update.effective_user.id}")
+            await update.message.reply_text(localization.new_tag_threshold_set.format(new_threshold=new_threshold))
         else:
-            await update.message.reply_text("Пожалуйста, укажите значение от 0 до 1.")
+            await update.message.reply_text(localization.please_specify_value_between)
     except (IndexError, ValueError):
-        await update.message.reply_text("Пожалуйста, укажите корректное числовое значение.")
+        await update.message.reply_text(localization.please_specify_correct_value)
 
 
 async def add_banned_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -124,12 +133,12 @@ async def add_banned_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if new_tag not in banned_tags:
             banned_tags.append(new_tag)
             settings.set('banned_tags', banned_tags)
-            ## TODO USE https://github.com/solaluset/i18nice
-            await update.message.reply_text(f"Тег '{new_tag}' добавлен в список запрещенных.")
+            logger.info(f"Banned tag '{new_tag}' added by user {update.effective_user.id}")
+            await update.message.reply_text(localization.tag_added_to_banned.format(new_tag=new_tag))
         else:
-            await update.message.reply_text(f"Тег '{new_tag}' уже в списке запрещенных.")
+            await update.message.reply_text(localization.tag_already_in_banned.format(new_tag=new_tag))
     except IndexError:
-        await update.message.reply_text("Пожалуйста, укажите тег для добавления.")
+        await update.message.reply_text(localization.please_specify_tag_to_add)
 
 
 async def remove_banned_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -142,18 +151,26 @@ async def remove_banned_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if tag_to_remove in banned_tags:
             banned_tags.remove(tag_to_remove)
             settings.set('banned_tags', banned_tags)
-            ## TODO USE https://github.com/solaluset/i18nice
-            await update.message.reply_text(f"Тег '{tag_to_remove}' удален из списка запрещенных.")
+            logger.info(f"Banned tag '{tag_to_remove}' removed by user {update.effective_user.id}")
+            await update.message.reply_text(localization.tag_removed_from_banned.format(tag_to_remove=tag_to_remove))
         else:
-            await update.message.reply_text(f"Тег '{tag_to_remove}' не найден в списке запрещенных.")
+            await update.message.reply_text(localization.tag_not_found_in_banned.format(tag_to_remove=tag_to_remove))
     except IndexError:
-        await update.message.reply_text("Пожалуйста, укажите тег для удаления.")
+        await update.message.reply_text(localization.please_specify_tag_to_remove)
 
 
 async def is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = await context.bot.get_chat_member(update.effective_chat.id, update.effective_user.id)
     if user.status in ['creator', 'administrator']:
         return True
-    ## TODO USE https://github.com/solaluset/i18nice
-    await update.message.reply_text("Эта команда доступна только администраторам.")
+    await update.message.reply_text(localization.admin_only_command)
     return False
+
+async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    lang = query.data.split("_")[1]
+    context.user_data['language'] = lang
+    
+    await query.edit_message_text(localization.language_changed)
